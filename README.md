@@ -1,1 +1,1 @@
-# WalletBuddy
+# walletbuddy
