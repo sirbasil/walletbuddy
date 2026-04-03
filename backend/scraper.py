@@ -1,10 +1,12 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
+from playwright.sync_api import sync_playwright # type: ignore
 from difflib import SequenceMatcher
 import re
 import logging
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+
+
 
 
 # -------------------------
@@ -118,7 +120,7 @@ def scrape_amazon(url, page):
     log.info(f"Scraping Amazon: {url}")
 
     page.goto(url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(1000)
 
     # NAME — multiple fallback selectors
     name = None
@@ -198,92 +200,46 @@ def scrape_amazon(url, page):
 def scrape_flipkart(url, page):
     log.info(f"Scraping Flipkart: {url}")
 
-    page.goto(url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.goto(url, timeout=15000, wait_until="domcontentloaded")
 
-    # Close login popup
-    for selector in ["button._2KpZ6l._2doB4z", "button[class*='_2doB4z']", "._2AkmmA button"]:
-        try:
-            page.locator(selector).click(timeout=2000)
-            break
-        except Exception:
-            continue
+    # Close login popup (safe)
+    try:
+        page.locator("button._2KpZ6l._2doB4z").click(timeout=2000)
+    except:
+        pass
 
-    # NAME — multiple fallbacks
-    name = None
-    for selector in [
-        "span.B_NuCI",
-        "h1.yhB1nd",
-        "h1[class*='product-title']",
-        ".x-product-title",
-        "h1"
-    ]:
-        try:
-            el = page.locator(selector).first
-            el.wait_for(timeout=5000)
-            name = el.inner_text().strip()
-            if name:
-                break
-        except Exception:
-            continue
-    if not name:
+    # NAME
+    try:
+        name = page.locator("span.B_NuCI").first.inner_text(timeout=4000)
+    except:
         name = page.title()
 
-    # PRICE — multiple fallbacks
-    price_raw = None
-    for selector in [
-        "div._30jeq3._16Jk6d",
-        "div._30jeq3",
-        "div[class*='_16Jk6d']",
-        "._25b18 ._30jeq3",
-        "div[class*='price']"
-    ]:
+    # 🔥 PRICE (FIXED — more reliable)
+    price = None
+    try:
+        price = page.locator("div._30jeq3").first.inner_text(timeout=4000)
+    except:
         try:
-            el = page.locator(selector).first
-            el.wait_for(timeout=3000)
-            price_raw = el.inner_text().strip()
-            if price_raw:
-                break
-        except Exception:
-            continue
-
-    # RATING
-    rating = None
-    for selector in [
-        "div._3LWZlK",
-        "div[class*='rating'] span",
-        "._2d4LTz"
-    ]:
-        try:
-            el = page.locator(selector).first
-            el.wait_for(timeout=3000)
-            rating_text = el.inner_text().strip()
-            rating = float(rating_text)
-            break
-        except Exception:
-            continue
+            price = page.locator("._30jeq3._16Jk6d").first.inner_text(timeout=4000)
+        except:
+            price = None
 
     # IMAGE
     image = None
-    for selector in ["img._396cs4", "img._2r_T1I", "img[class*='product-image']", "._2r_T1I img"]:
-        try:
-            el = page.locator(selector).first
-            image = el.get_attribute("src")
-            if image:
-                break
-        except Exception:
-            continue
+    try:
+        image = page.locator("img._396cs4").first.get_attribute("src")
+    except:
+        pass
 
     return {
         "site": "flipkart",
-        "name": name,
-        "price": clean_price(price_raw),
-        "price_raw": price_raw,
+        "name": name.strip() if name else None,
+        "price": clean_price(price),
+        "price_raw": price,
         "image": image,
-        "rating": rating,
+        "rating": None,
         "url": url
     }
-
 
 # -------------------------
 # CROMA SCRAPER
@@ -292,7 +248,7 @@ def scrape_croma(url, page):
     log.info(f"Scraping Croma: {url}")
 
     page.goto(url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(1000)
 
     name = None
     for selector in ["h1.pd-title", "h1[class*='product']", "h1"]:
@@ -359,7 +315,7 @@ def scrape_reliance(url, page):
     log.info(f"Scraping Reliance Digital: {url}")
 
     page.goto(url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(1000)
 
     name = None
     for selector in ["h1.pdp__title", "h1[class*='title']", "h1"]:
@@ -427,13 +383,13 @@ def scrape_reliance(url, page):
 # -------------------------
 # SEARCH FLIPKART
 # -------------------------
-def search_flipkart_links(query, page, max_results=5):
+def search_flipkart_links(query, page, max_results=3):
     log.info(f"Searching Flipkart for: {query}")
     links = []
 
     search_url = f"https://www.flipkart.com/search?q={query.replace(' ', '+')}"
     page.goto(search_url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(1500)
 
     try:
         page.wait_for_selector("a[href*='/p/']", timeout=10000)
@@ -466,7 +422,7 @@ def search_croma_links(query, page, max_results=3):
 
     search_url = f"https://www.croma.com/searchB?q={query.replace(' ', '%20')}"
     page.goto(search_url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(1500)
 
     try:
         elements = page.locator("a[href*='/p/']").all()
@@ -493,7 +449,7 @@ def search_reliance_links(query, page, max_results=3):
 
     search_url = f"https://www.reliancedigital.in/search?q={query.replace(' ', '%20')}"
     page.goto(search_url, timeout=60000, wait_until="domcontentloaded")
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(1500)
 
     try:
         elements = page.locator("a[href*='/p/']").all()
@@ -538,9 +494,9 @@ def find_best_match(original_name, candidates, threshold=0.5):
             best_score = total_score
             best = data
 
-    if best_score < threshold:
-        return None, best_score
-
+        if best_score > 0.75:
+            break
+    
     best["match_score"] = round(best_score, 3)
     return best, best_score
 # -------------------------
@@ -563,11 +519,6 @@ def detect_store(url):
 # MAIN COMPARE FUNCTION
 # -------------------------
 def compare_all_stores(url):
-    """
-    Given any product URL from Amazon, Flipkart, Croma, or Reliance Digital,
-    scrape the source product and then find & compare it across all other stores.
-    Returns a dict with results from all 4 stores.
-    """
     results = {
         "amazon": None,
         "flipkart": None,
@@ -603,7 +554,9 @@ def compare_all_stores(url):
 
         page = context.new_page()
 
-        # --- Scrape source product ---
+        # ======================
+        # SOURCE PRODUCT
+        # ======================
         try:
             if source_store == "amazon":
                 source_data = scrape_amazon(url, page)
@@ -614,11 +567,11 @@ def compare_all_stores(url):
             elif source_store == "reliance":
                 source_data = scrape_reliance(url, page)
             else:
-                browser.close()
                 return {"error": "Unsupported store URL"}
 
             results[source_store] = source_data
-            product_name = source_data["name"]
+
+            product_name = source_data.get("name")
             results["product_name"] = product_name
             results["product_image"] = source_data.get("image")
             results["product_rating"] = source_data.get("rating")
@@ -627,95 +580,127 @@ def compare_all_stores(url):
             log.info(f"Search query: {search_query}")
 
         except Exception as e:
-            log.error(f"Failed to scrape source URL: {e}")
-            browser.close()
+            log.error(f"Source scrape failed: {e}")
             return {"error": str(e)}
 
-        # --- Search and scrape other stores ---
+        # ======================
+        # HELPER FUNCTION
+        # ======================
+        def safe_assign(store_name, best, score):
+            if best and best.get("price"):
+                results[store_name] = best
+            else:
+                results[store_name] = {
+                    "error": "no valid match",
+                    "best_score": score
+                }
 
+        # ======================
         # FLIPKART
+        # ======================
         if source_store != "flipkart":
             try:
                 fk_links = search_flipkart_links(search_query, page)
                 fk_candidates = []
-                for link in fk_links[:3]:
+
+                for link in fk_links[:2]:
                     try:
-                        data = scrape_flipkart(link, page)
+                        new_page = context.new_page()
+                        data = scrape_flipkart(link, new_page)
+                        new_page.close()
                         fk_candidates.append(data)
                     except Exception as e:
-                        log.warning(f"Flipkart scrape failed for {link}: {e}")
+                        log.warning(f"Flipkart scrape failed: {e}")
+
                 best, score = find_best_match(product_name, fk_candidates)
-                results["flipkart"] = best or {"error": "no match found", "best_score": score}
+                safe_assign("flipkart", best, score)
+
             except Exception as e:
-                log.error(f"Flipkart comparison failed: {e}")
                 results["flipkart"] = {"error": str(e)}
 
+        # ======================
         # CROMA
+        # ======================
         if source_store != "croma":
             try:
-                croma_links = search_croma_links(search_query, page)
-                croma_candidates = []
-                for link in croma_links[:2]:
+                links = search_croma_links(search_query, page)
+                candidates = []
+
+                for link in links[:2]:
                     try:
-                        data = scrape_croma(link, page)
-                        croma_candidates.append(data)
+                        new_page = context.new_page()
+                        data = scrape_croma(link, new_page)
+                        new_page.close()
+                        candidates.append(data)
                     except Exception as e:
-                        log.warning(f"Croma scrape failed for {link}: {e}")
-                best, score = find_best_match(product_name, croma_candidates)
-                results["croma"] = best or {"error": "no match found", "best_score": score}
+                        log.warning(f"Croma scrape failed: {e}")
+
+                best, score = find_best_match(product_name, candidates)
+                safe_assign("croma", best, score)
+
             except Exception as e:
-                log.error(f"Croma comparison failed: {e}")
                 results["croma"] = {"error": str(e)}
 
+        # ======================
         # RELIANCE
+        # ======================
         if source_store != "reliance":
             try:
-                rel_links = search_reliance_links(search_query, page)
-                rel_candidates = []
-                for link in rel_links[:2]:
+                links = search_reliance_links(search_query, page)
+                candidates = []
+
+                for link in links[:2]:
                     try:
-                        data = scrape_reliance(link, page)
-                        rel_candidates.append(data)
+                        new_page = context.new_page()
+                        data = scrape_reliance(link, new_page)
+                        new_page.close()
+                        candidates.append(data)
                     except Exception as e:
-                        log.warning(f"Reliance scrape failed for {link}: {e}")
-                best, score = find_best_match(product_name, rel_candidates)
-                results["reliance"] = best or {"error": "no match found", "best_score": score}
+                        log.warning(f"Reliance scrape failed: {e}")
+
+                best, score = find_best_match(product_name, candidates)
+                safe_assign("reliance", best, score)
+
             except Exception as e:
-                log.error(f"Reliance comparison failed: {e}")
                 results["reliance"] = {"error": str(e)}
 
-        # AMAZON
+        # ======================
+        # AMAZON SEARCH
+        # ======================
         if source_store != "amazon":
             try:
                 search_url = f"https://www.amazon.in/s?k={search_query.replace(' ', '+')}"
-                page.goto(search_url, timeout=60000, wait_until="domcontentloaded")
-                page.wait_for_timeout(3000)
+                page.goto(search_url, timeout=20000, wait_until="domcontentloaded")
+                page.wait_for_timeout(1000)
 
-                amz_links = []
+                links = []
                 elements = page.locator("a[href*='/dp/']").all()
+
                 seen = set()
-                for el in elements[:3]:
+                for el in elements[:2]:
                     href = el.get_attribute("href")
                     if href and "/dp/" in href:
                         full = "https://www.amazon.in" + href if href.startswith("/") else href
                         full = full.split("?")[0]
                         if full not in seen:
                             seen.add(full)
-                            amz_links.append(full)
+                            links.append(full)
 
-                amz_candidates = []
-                for link in amz_links[:2]:
+                candidates = []
+
+                for link in links:
                     try:
-                        data = scrape_amazon(link, page)
-                        amz_candidates.append(data)
+                        new_page = context.new_page()
+                        data = scrape_amazon(link, new_page)
+                        new_page.close()
+                        candidates.append(data)
                     except Exception as e:
-                        log.warning(f"Amazon scrape failed for {link}: {e}")
+                        log.warning(f"Amazon scrape failed: {e}")
 
-                best, score = find_best_match(product_name, amz_candidates)
-                results["amazon"] = best or {"error": "no match found", "best_score": score}
+                best, score = find_best_match(product_name, candidates)
+                safe_assign("amazon", best, score)
 
             except Exception as e:
-                log.error(f"Amazon comparison failed: {e}")
                 results["amazon"] = {"error": str(e)}
 
         browser.close()

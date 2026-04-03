@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>walletbuddy.</title>
+<link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@100;300;400;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --red: #e8003d;
+    --blue: #0078d7;
+    --green: #107c10;
+    --orange: #ca5010;
+    --purple: #8764b8;
+    --bg: #000;
+    --bg2: #0a0a0a;
+    --bg3: #111;
+    --bg4: #1a1a1a;
+    --text: #ffffff;
+    --muted: rgba(255,255,255,0.38);
+    --faint: rgba(255,255,255,0.12);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+  /* ANIMATIONS */
+  @keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(250%);}}
+  @keyframes bounce-in{0%{transform:scale(0.82);opacity:0;}60%{transform:scale(1.05);}100%{transform:scale(1);opacity:1;}}
+  @keyframes slide-up{0%{transform:translateY(18px);opacity:0;}100%{transform:translateY(0);opacity:1;}}
+  @keyframes slide-left{0%{transform:translateX(20px);opacity:0;}100%{transform:translateX(0);opacity:1;}}
+  @keyframes flip-in{0%{transform:perspective(400px) rotateX(80deg);opacity:0;}100%{transform:perspective(400px) rotateX(0deg);opacity:1;}}
+  @keyframes fade-in{0%{opacity:0;}100%{opacity:1;}}
+  @keyframes pulse{0%,100%{opacity:0.4;}50%{opacity:1;}}
+  @keyframes pulse-glow-green{0%,100%{box-shadow:0 0 0px var(--green);}50%{box-shadow:0 0 24px rgba(16,124,16,0.5);}}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+  @keyframes progress-run{0%{width:0%;}100%{width:90%;}}
+
+  .shimmer-box{position:relative;overflow:hidden;background:rgba(255,255,255,0.06);}
+  .shimmer-box::after{content:'';position:absolute;top:0;left:0;width:35%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);animation:shimmer 1.5s ease-in-out infinite;}
+  .pulse-tile{animation:pulse 1.8s ease-in-out infinite;}
+
+  /* HERO */
+  .hero{background:var(--bg);padding:32px 40px 24px;}
+  .hero-title{font-size:56px;font-weight:100;letter-spacing:-3px;line-height:1;margin-bottom:8px;white-space:nowrap;overflow:hidden;animation:fade-in 0.5s ease both;}
+  .hero-title span.accent{color:var(--red);}
+  .hero-title span.ghost{color:rgba(255,255,255,0.08);}
+  .hero-sub{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:24px;}
+
+  /* SEARCH BAR */
+  .search-bar{display:flex;align-items:stretch;max-width:720px;gap:0;}
+  .search-input{background:transparent;border:none;border-bottom:2px solid var(--red);color:#fff;font-size:15px;font-weight:300;outline:none;padding:10px 8px;font-family:'Segoe UI',sans-serif;flex:1;}
+  .search-input::placeholder{color:rgba(255,255,255,0.2);}
+  .search-days{background:rgba(255,255,255,0.07);border-bottom:2px solid rgba(255,255,255,0.18);color:#fff;font-size:10px;padding:10px 16px;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;white-space:nowrap;cursor:pointer;user-select:none;}
+  .search-btn{background:var(--red);color:#fff;font-size:11px;font-weight:300;text-transform:uppercase;letter-spacing:1.5px;padding:10px 24px;display:flex;align-items:center;white-space:nowrap;cursor:pointer;border:none;font-family:'Segoe UI',sans-serif;transition:opacity 0.2s;}
+  .search-btn:hover{opacity:0.85;}
+
+  /* PROGRESS BAR */
+  .progress-wrap{max-width:720px;height:2px;background:rgba(255,255,255,0.06);margin-top:10px;overflow:hidden;}
+  .progress-fill{height:2px;background:var(--red);width:0%;transition:width 0.8s ease;position:relative;overflow:hidden;}
+  .progress-fill::after{content:'';position:absolute;top:0;left:0;width:40%;height:100%;background:rgba(255,255,255,0.4);animation:shimmer 1.1s ease-in-out infinite;}
+
+  /* STEP LOG */
+  .step-log{margin-top:10px;max-width:720px;display:none;}
+  .step-log.visible{display:flex;gap:16px;flex-wrap:wrap;}
+  .step-item{display:flex;align-items:center;gap:5px;font-size:9px;text-transform:uppercase;letter-spacing:0.6px;}
+  .step-dot{width:6px;height:6px;flex-shrink:0;}
+  .step-dot.done{background:var(--green);}
+  .step-dot.active{background:var(--red);animation:pulse 0.8s ease-in-out infinite;}
+  .step-dot.pending{background:rgba(255,255,255,0.15);}
+  .step-item.done-item{color:rgba(107,200,107,0.7);}
+  .step-item.active-item{color:#fff;}
+  .step-item.pending-item{color:rgba(255,255,255,0.2);}
+
+  /* PRODUCT STRIP */
+  .product-strip{background:var(--bg2);padding:14px 40px;display:flex;align-items:center;gap:16px;border-top:2px solid var(--red);border-bottom:1px solid rgba(255,255,255,0.05);min-height:76px;}
+  .product-img{width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .product-img-real{width:52px;height:52px;object-fit:contain;display:none;}
+  .product-img-placeholder{width:52px;height:52px;background:var(--blue);}
+  .product-info{flex:1;}
+  .product-name{font-size:14px;color:#fff;font-weight:300;}
+  .product-meta{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;}
+  .product-price-wrap{text-align:right;flex-shrink:0;}
+  .product-price-label{font-size:9px;color:var(--muted);text-transform:uppercase;}
+  .product-price{font-size:30px;font-weight:100;letter-spacing:-1px;}
+  .product-price-change{font-size:9px;color:#00e676;}
+
+  /* RESULTS GRID */
+  .results{padding:12px 40px 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .col-title{font-size:22px;font-weight:100;color:rgba(255,255,255,0.45);letter-spacing:-0.5px;margin-bottom:8px;}
+
+  /* STAT TILES */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:6px;}
+  .stat-tile{padding:10px 8px;}
+  .stat-tile .slbl{font-size:8px;color:rgba(255,255,255,0.6);text-transform:uppercase;}
+  .stat-tile .sval{font-size:18px;font-weight:100;color:#fff;}
+
+  /* CHART */
+  .chart-box{background:var(--bg2);padding:14px;display:flex;flex-direction:column;}
+  .chart-label{font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+  .chart-bars{display:flex;align-items:flex-end;gap:2px;height:100px;}
+  .chart-range{display:flex;justify-content:space-between;margin-top:5px;}
+  .chart-range span{font-size:8px;color:rgba(255,255,255,0.2);}
+
+  /* STORE TILES */
+  .store-tile{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+  .store-name{font-size:9px;color:rgba(255,255,255,0.6);}
+  .store-price{font-size:20px;font-weight:100;color:#fff;letter-spacing:-0.5px;}
+  .store-bar-wrap{width:55px;}
+  .store-bar-track{background:rgba(255,255,255,0.15);height:4px;}
+  .store-bar-fill{background:#fff;height:4px;width:0%;transition:width 0.6s ease;}
+
+  /* VERDICT */
+  .verdict-tile{background:var(--orange);padding:20px;}
+  .verdict-label{font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.6px;}
+  .verdict-text{font-size:40px;font-weight:100;color:#fff;letter-spacing:-2px;line-height:1;margin:8px 0;}
+  .verdict-site{font-size:12px;color:rgba(255,255,255,0.8);}
+  .verdict-divider{background:rgba(255,255,255,0.12);height:1px;margin:12px 0;}
+  .verdict-stats{display:flex;justify-content:space-between;}
+  .verdict-stat .vslbl{font-size:8px;color:rgba(255,255,255,0.55);text-transform:uppercase;}
+  .verdict-stat .vsval{font-size:20px;font-weight:100;color:#fff;}
+
+  /* FORECAST */
+  .forecast-box{background:var(--bg2);padding:14px;margin-top:6px;}
+  .forecast-row{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+  .forecast-day{font-size:8px;color:rgba(255,255,255,0.35);width:30px;flex-shrink:0;}
+  .forecast-bar{height:10px;width:0%;transition:width 0.5s ease;}
+  .forecast-price{font-size:8px;color:rgba(255,255,255,0.5);}
+
+  /* DAYS PICKER */
+  .days-picker{position:absolute;background:var(--bg4);border:1px solid rgba(255,255,255,0.1);z-index:10;display:none;}
+  .days-picker.open{display:block;}
+  .days-option{padding:8px 16px;font-size:11px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;}
+  .days-option:hover{background:rgba(255,255,255,0.08);color:#fff;}
+  .days-option.selected{color:var(--red);}
+
+  /* STATES */
+  .state-empty .results-area{display:none;}
+  .state-empty .product-strip{display:none;}
+  .state-loading .results-area{display:none;}
+  .state-error .results-area{display:none;}
+
+  /* ERROR TILE */
+  .error-tile{background:#1a0000;border-left:3px solid var(--red);padding:24px;display:flex;align-items:center;gap:24px;margin:12px 40px;}
+  .error-oops{font-size:52px;font-weight:100;color:var(--red);letter-spacing:-2px;line-height:1;}
+  .error-divider{width:1px;height:80px;background:rgba(255,255,255,0.08);}
+  .error-msg{font-size:13px;color:rgba(255,255,255,0.6);font-weight:300;margin-bottom:14px;}
+  .site-btns{display:flex;gap:6px;flex-wrap:wrap;}
+  .site-btn{color:#fff;font-size:10px;padding:7px 14px;text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;border:none;font-family:'Segoe UI',sans-serif;}
+
+  /* SUPPORTED SITES */
+  .supported{text-align:center;padding:32px 40px;font-size:10px;color:rgba(255,255,255,0.15);text-transform:uppercase;letter-spacing:1.2px;}
+
+  /* EMPTY GHOST */
+  .empty-ghost{padding:12px 40px 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;opacity:0.2;pointer-events:none;}
+  .ghost-col{display:flex;flex-direction:column;gap:6px;}
+  .ghost-title{font-size:22px;font-weight:100;color:rgba(255,255,255,0.3);}
+  .ghost-block{background:rgba(255,255,255,0.04);}
+
+  /* DAYS PICKER WRAPPER */
+  .days-wrap{position:relative;}
+
+  /* RESPONSIVE */
+  @media(max-width:900px){
+    .hero{padding:24px 20px 18px;}
+    .hero-title{font-size:36px;}
+    .product-strip{padding:12px 20px;}
+    .results{padding:10px 20px 24px;grid-template-columns:1fr;}
+    .empty-ghost{padding:10px 20px 24px;grid-template-columns:1fr;}
+    .error-tile{margin:12px 20px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app" class="state-empty">
+
+  <!-- HERO / SEARCH -->
+  <div class="hero">
+    <div class="hero-title">wallet<span class="accent">buddy</span>. <span class="ghost">compare save wait</span></div>
+    <div class="hero-sub">paste any product url · set your wait · we do the rest</div>
+    <div style="position:relative;">
+      <div class="search-bar">
+        <input class="search-input" id="url-input" placeholder="paste amazon / flipkart / croma url here..." />
+        <div class="days-wrap">
+          <div class="search-days" id="days-btn" onclick="toggleDays()">
+            <span id="days-label">30 days</span> ▾
+          </div>
+          <div class="days-picker" id="days-picker">
+            <div class="days-option selected" onclick="selectDays(7,'7 days')">7 days</div>
+            <div class="days-option" onclick="selectDays(14,'14 days')">14 days</div>
+            <div class="days-option selected" onclick="selectDays(30,'30 days')">30 days</div>
+            <div class="days-option" onclick="selectDays(60,'60 days')">60 days</div>
+            <div class="days-option" onclick="selectDays(90,'90 days')">90 days</div>
+          </div>
+        </div>
+        <button class="search-btn" onclick="startTracking()">track →</button>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-fill" id="prog-fill"></div>
+      </div>
+      <div class="step-log" id="step-log">
+        <div class="step-item pending-item" id="step0"><div class="step-dot pending" id="sdot0"></div><span id="stxt0">url parsing</span></div>
+        <div class="step-item pending-item" id="step1"><div class="step-dot pending" id="sdot1"></div><span id="stxt1">product info</span></div>
+        <div class="step-item pending-item" id="step2"><div class="step-dot pending" id="sdot2"></div><span id="stxt2">price history</span></div>
+        <div class="step-item pending-item" id="step3"><div class="step-dot pending" id="sdot3"></div><span id="stxt3">store comparison</span></div>
+        <div class="step-item pending-item" id="step4"><div class="step-dot pending" id="sdot4"></div><span id="stxt4">ml prediction</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCT STRIP -->
+  <div class="product-strip" id="product-strip" style="display:none;">
+    <div id="prod-img-wrap">
+      <img class="product-img-real" id="prod-img" src="" alt="product"/>
+      <div class="product-img-placeholder" id="prod-img-placeholder"></div>
+    </div>
+    <div class="product-info">
+      <div class="product-name" id="prod-name">—</div>
+      <div class="product-meta" id="prod-meta">—</div>
+    </div>
+    <div class="product-price-wrap">
+      <div class="product-price-label">current price</div>
+      <div class="product-price" id="prod-price">—</div>
+      <div class="product-price-change" id="prod-change">—</div>
+    </div>
+  </div>
+
+  <!-- PRODUCT STRIP SKELETON -->
+  <div class="product-strip" id="product-strip-skeleton" style="display:none;">
+    <div class="shimmer-box" style="width:52px;height:52px;flex-shrink:0;"></div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:7px;">
+      <div class="shimmer-box" style="height:13px;width:60%;"></div>
+      <div class="shimmer-box" style="height:9px;width:35%;"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <div class="shimmer-box" style="height:9px;width:70px;"></div>
+      <div class="shimmer-box" style="height:28px;width:100px;"></div>
+    </div>
+  </div>
+
+  <!-- ERROR STATE -->
+  <div id="error-area" style="display:none;">
+    <div class="error-tile">
+      <div>
+        <div class="error-oops">oops.</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.6px;margin-top:4px;">unsupported site</div>
+      </div>
+      <div class="error-divider"></div>
+      <div>
+        <div class="error-msg" id="error-msg">we couldn't find price data for this url. try one of these:</div>
+        <div class="site-btns">
+          <button class="site-btn" style="background:var(--blue);" onclick="fillDemo('amazon')">Amazon</button>
+          <button class="site-btn" style="background:var(--green);" onclick="fillDemo('flipkart')">Flipkart</button>
+          <button class="site-btn" style="background:var(--orange);" onclick="fillDemo('croma')">Croma</button>
+          <button class="site-btn" style="background:var(--purple);" onclick="fillDemo('reliance')">Reliance Digital</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS AREA -->
+  <div class="results-area" id="results-area" style="display:none;">
+    <div class="results">
+
+      <!-- HISTORY COL -->
+      <div>
+        <div class="col-title">history.</div>
+        <div class="stat-grid" id="stat-grid">
+          <div class="shimmer-box pulse-tile" style="height:52px;"></div>
+          <div class="shimmer-box pulse-tile" style="height:52px;animation-delay:0.2s;"></div>
+          <div class="shimmer-box pulse-tile" style="height:52px;animation-delay:0.4s;"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-label">30-day price chart</div>
+          <div class="chart-bars" id="chart-bars"></div>
+          <div class="chart-range"><span>30d ago</span><span>today</span></div>
+        </div>
+      </div>
+
+      <!-- COMPARE COL -->
+      <div>
+        <div class="col-title">compare.</div>
+        <div id="stores-col"></div>
+      </div>
+
+      <!-- VERDICT COL -->
+      <div>
+        <div class="col-title">verdict.</div>
+        <div id="verdict-col"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESULTS SKELETON -->
+  <div id="results-skeleton" style="display:none;">
+    <div class="results">
+      <div>
+        <div class="col-title" style="opacity:0.3;">history.</div>
+        <div class="stat-grid">
+          <div class="shimmer-box pulse-tile" style="height:52px;"></div>
+          <div class="shimmer-box pulse-tile" style="height:52px;animation-delay:0.15s;"></div>
+          <div class="shimmer-box pulse-tile" style="height:52px;animation-delay:0.3s;"></div>
+        </div>
+        <div class="shimmer-box" style="height:130px;margin-top:6px;"></div>
+      </div>
+      <div>
+        <div class="col-title" style="opacity:0.3;">compare.</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div class="shimmer-box pulse-tile" style="height:56px;"></div>
+          <div class="shimmer-box pulse-tile" style="height:56px;animation-delay:0.15s;"></div>
+          <div class="shimmer-box pulse-tile" style="height:56px;animation-delay:0.3s;"></div>
+          <div class="shimmer-box pulse-tile" style="height:56px;animation-delay:0.45s;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="col-title" style="opacity:0.3;">verdict.</div>
+        <div class="shimmer-box pulse-tile" style="height:240px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPTY GHOST -->
+  <div class="empty-ghost" id="empty-ghost">
+    <div class="ghost-col">
+      <div class="ghost-title">history.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
+        <div class="ghost-block" style="height:52px;"></div>
+        <div class="ghost-block" style="height:52px;"></div>
+        <div class="ghost-block" style="height:52px;"></div>
+      </div>
+      <div class="ghost-block" style="height:120px;margin-top:4px;"></div>
+    </div>
+    <div class="ghost-col">
+      <div class="ghost-title">compare.</div>
+      <div class="ghost-block" style="height:56px;margin-bottom:4px;"></div>
+      <div class="ghost-block" style="height:56px;margin-bottom:4px;"></div>
+      <div class="ghost-block" style="height:56px;margin-bottom:4px;"></div>
+      <div class="ghost-block" style="height:56px;"></div>
+    </div>
+    <div class="ghost-col">
+      <div class="ghost-title">verdict.</div>
+      <div class="ghost-block" style="height:230px;"></div>
+    </div>
+  </div>
+
+  <div class="supported">supported sites · amazon india · flipkart · croma · reliance digital</div>
+
+</div>
+
+<script>
+var selectedDays = 30;
+var currentState = 'empty';
+var loadingTimers = [];
+
+var SUPPORTED = ['amazon','flipkart','croma','reliancedigital','reliancesmarttech'];
+
+/* ================= API ================= */
+
+async function fetchCompare(url){
+  try{
+    const res = await fetch(`http://127.0.0.1:8000/compare?url=${encodeURIComponent(url)}`);
+    return await res.json();
+  }catch(e){
+    console.error(e);
+    return null;
+  }
+}
+
+async function fetchTrack(url){
+  try{
+    const res = await fetch("http://127.0.0.1:8000/track", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({url:url, days:selectedDays})
+    });
+    return await res.json();
+  }catch(e){
+    console.error(e);
+    return null;
+  }
+}
+
+/* ================= CORE ================= */
+
+function isSupported(url){
+  var u = url.toLowerCase().replace(/\s/g,'');
+  return SUPPORTED.some(s => u.includes(s));
+}
+
+function toggleDays(){
+  document.getElementById('days-picker').classList.toggle('open');
+}
+
+function selectDays(val,label){
+  selectedDays = val;
+  document.getElementById('days-label').textContent = label;
+  document.getElementById('days-picker').classList.remove('open');
+}
+
+document.addEventListener('click',function(e){
+  var dp = document.getElementById('days-picker');
+  var db = document.getElementById('days-btn');
+  if(!db.contains(e.target)) dp.classList.remove('open');
+});
+
+/* ================= TRACK FLOW ================= */
+
+async function startTracking(){
+  var url = document.getElementById('url-input').value.trim();
+  if(!url){ document.getElementById('url-input').focus(); return; }
+
+  clearTimers();
+  resetUI();
+
+  if(!isSupported(url)){
+    showError(url);
+    return;
+  }
+
+  showLoadingState();
+
+  // 🔥 STEP 1: FAST COMPARE
+  const compareData = await fetchCompare(url);
+
+  if(!compareData){
+    showError("compare failed");
+    return;
+  }
+
+  window.COMPARE_DATA = compareData;
+  window.REAL_DATA = compareData;
+
+  /* ===== LOADING STAGES ===== */
+
+  setStepState(0,'active','url parsing...');
+  document.getElementById('prog-fill').style.width='5%';
+
+  loadingTimers.push(setTimeout(()=>{
+    setStepState(0,'done','url parsed ✓');
+    setStepState(1,'active','fetching product...');
+    document.getElementById('prog-fill').style.width='20%';
+  },600));
+
+  loadingTimers.push(setTimeout(()=>{
+    setStepState(1,'done','product fetched ✓');
+    setStepState(2,'active','scraping price history...');
+    document.getElementById('prog-fill').style.width='38%';
+
+    showProductStrip();
+  },2000));
+
+  loadingTimers.push(setTimeout(()=>{
+    setStepState(2,'done','history loading...');
+    setStepState(3,'active','checking stores...');
+    document.getElementById('prog-fill').style.width='58%';
+
+    showResultsSkeleton();
+    buildStores();
+  },4800));
+
+  loadingTimers.push(setTimeout(async ()=>{
+    setStepState(3,'done','stores compared ✓');
+    setStepState(4,'active','running ml...');
+
+    // 🔥 STEP 2: FULL TRACK DATA
+    const trackData = await fetchTrack(url);
+
+    if(trackData){
+      window.TRACK_DATA = trackData;
+
+      buildHistoryStats(trackData);
+      buildChart(trackData);
+      buildVerdict(trackData);
+    }else{
+      buildVerdict();
+    }
+
+    document.getElementById('prog-fill').style.width='100%';
+
+    setStepState(4,'done','prediction ready ✓');
+
+    setTimeout(()=>{
+      document.getElementById('step-log').classList.remove('visible');
+    },2000);
+
+  },8000));
+}
+
+/* ================= UI HELPERS ================= */
+
+function clearTimers(){
+  loadingTimers.forEach(t=>clearTimeout(t));
+  loadingTimers=[];
+}
+
+function resetUI(){
+  document.getElementById('empty-ghost').style.display='none';
+  document.getElementById('error-area').style.display='none';
+  document.getElementById('product-strip').style.display='none';
+  document.getElementById('product-strip-skeleton').style.display='none';
+  document.getElementById('results-area').style.display='none';
+  document.getElementById('results-skeleton').style.display='none';
+  document.getElementById('prog-fill').style.width='0%';
+  document.getElementById('step-log').classList.remove('visible');
+
+  for(let i=0;i<5;i++) setStepState(i,'pending','');
+
+  ['url parsing','product info','price history','store comparison','ml prediction']
+  .forEach((t,i)=> document.getElementById('stxt'+i).textContent=t);
+}
+
+function showLoadingState(){
+  document.getElementById('step-log').classList.add('visible');
+  document.getElementById('product-strip-skeleton').style.display='flex';
+}
+
+function setStepState(idx,state,text){
+  var dot=document.getElementById('sdot'+idx);
+  var item=document.getElementById('step'+idx);
+  var txt=document.getElementById('stxt'+idx);
+
+  dot.className='step-dot '+state;
+  item.className='step-item '+(state==='done'?'done-item':state==='active'?'active-item':'pending-item');
+  if(text) txt.textContent=text;
+}
+
+/* ================= PRODUCT ================= */
+
+function showProductStrip(){
+  var source = window.REAL_DATA.source_store;
+  var d = window.REAL_DATA[source];
+
+  if (!d) {
+    console.log("No source product found");
+    return;
+  }
+
+  document.getElementById('prod-name').textContent = d.name || "Unknown Product";
+
+  // ✅ FIXED PRICE HANDLING
+  let price = d.price ? "₹" + d.price : "N/A";
+  document.getElementById('prod-price').textContent = price;
+
+  // ✅ SAFE IMAGE
+  if (d.image) {
+    document.getElementById('prod-img').src = d.image;
+    document.getElementById('prod-img').style.display='block';
+    document.getElementById('prod-img-placeholder').style.display='none';
+  }
+
+  document.getElementById('product-strip-skeleton').style.display='none';
+
+  var strip = document.getElementById('product-strip');
+  strip.style.display='flex';
+  strip.style.animation='slide-up 0.4s ease both';
+}
+
+/* ================= STORES ================= */
+
+function buildStores(){
+  const data = window.REAL_DATA;
+  const sc = document.getElementById('stores-col');
+  sc.innerHTML='';
+
+  const source = data.source_store;
+
+  // 🔥 STEP 1: collect all valid prices
+  const prices = [];
+
+  ["amazon","flipkart","croma","reliance"].forEach(site=>{
+    if(data[site] && data[site].price){
+      prices.push(data[site].price);
+    }
+  });
+
+  const minPrice = prices.length ? Math.min(...prices) : null;
+
+  // 🔥 STEP 2: render stores
+  ["amazon","flipkart","croma","reliance"].forEach((site)=>{
+    if(!data[site]) return;
+
+    const d = data[site];
+
+    let hasPrice = d.price ? true : false;
+    let priceText = hasPrice ? "₹" + d.price : "N/A";
+
+    let opacity = hasPrice ? "1" : "0.4";
+
+    // 🔥 price difference
+    let diffText = "";
+    if(hasPrice && minPrice && d.price !== minPrice){
+      let diff = d.price - minPrice;
+      let percent = ((diff / minPrice) * 100).toFixed(1);
+      diffText = `+₹${diff} (${percent}%)`;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className='store-tile';
+    wrap.style.background='#222';
+    wrap.style.opacity = opacity;
+
+    // 🔥 highlight source
+    if(site === source){
+      wrap.style.border = "2px solid red";
+    }
+
+    // 🔥 highlight cheapest
+    if(hasPrice && d.price === minPrice){
+      wrap.style.background = "#107c10"; // green
+    }
+
+    wrap.innerHTML = `
+      <div>
+        <div class="store-name">${site}</div>
+        <div class="store-price">${priceText}</div>
+        ${diffText ? `<div style="font-size:10px;color:#aaa;">${diffText}</div>` : ""}
+      </div>
+    `;
+
+    sc.appendChild(wrap);
+  });
+}
+
+/* ================= HISTORY ================= */
+
+function buildHistoryStats(data){
+  let history = data.history || [];
+  if(history.length===0) return;
+
+  let prices = history.map(h=>h.price).filter(Boolean);
+
+  let low=Math.min(...prices);
+  let high=Math.max(...prices);
+  let avg=Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
+
+  var sg=document.getElementById('stat-grid');
+  sg.innerHTML='';
+
+  [
+    {bg:'#107c10',lbl:'low',val:'₹'+low},
+    {bg:'#e8003d',lbl:'high',val:'₹'+high},
+    {bg:'#0078d7',lbl:'avg',val:'₹'+avg}
+  ].forEach(s=>{
+    var d=document.createElement('div');
+    d.className='stat-tile';
+    d.style.background=s.bg;
+    d.innerHTML=`<div class="slbl">${s.lbl}</div><div class="sval">${s.val}</div>`;
+    sg.appendChild(d);
+  });
+}
+
+function buildChart(data){
+  let history=data.history||[];
+  let prices=history.map(h=>h.price).filter(Boolean);
+  let max=Math.max(...prices);
+
+  var area=document.getElementById('chart-bars');
+  area.innerHTML='';
+
+  prices.forEach((p,i)=>{
+    let d=document.createElement('div');
+    d.style.background='#0078d7';
+    d.style.flex='1';
+    d.style.height='0%';
+    area.appendChild(d);
+
+    setTimeout(()=>{
+      d.style.height=(p/max)*100+'%';
+    },i*20);
+  });
+}
+
+/* ================= VERDICT ================= */
+
+function buildVerdict(data){
+  const vc=document.getElementById('verdict-col');
+  vc.innerHTML='';
+
+  let verdict=data?.prediction?.verdict || "best price";
+  let confidence=data?.prediction?.confidence || 0;
+
+  const vt=document.createElement('div');
+  vt.className='verdict-tile';
+
+  vt.innerHTML=`
+    <div class="verdict-label">decision</div>
+    <div class="verdict-text">${verdict}</div>
+    <div class="verdict-site">confidence ${confidence}%</div>
+  `;
+
+  vc.appendChild(vt);
+}
+
+/* ================= ERROR ================= */
+
+function showError(url){
+  document.getElementById('product-strip-skeleton').style.display='none';
+  document.getElementById('step-log').classList.remove('visible');
+
+  document.getElementById('error-msg').textContent =
+    `"${url.substring(0,40)}" not supported`;
+
+  document.getElementById('error-area').style.display='block';
+  document.getElementById('empty-ghost').style.display='grid';
+}
+
+/* ================= ENTER KEY ================= */
+
+document.getElementById('url-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter') startTracking();
+});
+</script>
